@@ -12,12 +12,14 @@ import Data.List
 -- Regular expressions
 regexTime   = "[0-9]{2}:[0-9]{2}:[0-9]{2}"
 regexSignal = "(\\-[0-9]{1,3}dB)"
-regexMac = "SA:([0-9a-f:]{17})"
+-- SA (source address) and TA (transmitter address)
+regexMac    = "[S|T]A:([0-9a-f:]{17})" 
 
 parseMac    line = line =~ regexMac :: String
 parseSignal line = line =~ regexSignal :: String
 parseTime   line = line =~ regexTime :: String
 
+-- Parses a line from a tcpdump file to a list of relevant fields
 parseLine :: String -> [String]
 parseLine line = 
   case (mac) of
