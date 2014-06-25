@@ -5,9 +5,11 @@ import System.Exit
 import System.IO.Unsafe
 import Text.Regex.Posix
 import Data.List
-import qualified Data.Map as Map
-import Data.Unique.Id
 import Control.Arrow
+import qualified Data.ByteString.Base16 as B16
+import qualified Data.ByteString.Char8 as S
+import qualified Crypto.Hash.SHA256 as H
+import qualified Data.Text as T
 
 -- Regular expressions
 regexTime   = "[0-9]{2}:[0-9]{2}:[0-9]{2}"
@@ -19,31 +21,29 @@ parseMac    line = line =~ regexMac :: String
 parseSignal line = line =~ regexSignal :: String
 parseTime   line = line =~ regexTime :: String
 
--- Unique ID supply
-idSupply = unsafePerformIO(initIdSupply 'i')
-
--- Map of MAC addresses
---MACs = Map.empty
+-- Anonymises a MAC address by hashing it
+anonymise :: String -> String -> String
+anonymise key mac =
+  take 8 $ S.unpack $ B16.encode $ H.hash $ S.pack $ key ++ mac
 
 -- Parses a line from a tcpdump file to a list of relevant fields
-parseLine :: String -> [String]
-parseLine line = 
+parseLine :: String -> String -> String
+parseLine key line =
   case (mac) of
-    ""  -> []
-    mac -> [parseTime line, parseSignal line, mac]
-  where 
+    ""  -> ""
+    mac -> let hash = anonymise key mac in
+           unwords [parseTime line, parseSignal line, hash]
+  where
     mac = parseMac line
 
--- 
 parse :: [String] -> IO String
 parse files = fmap concat $ mapM readFile files
---"3" -- $ hashedId $ idFromSupply idSupply
 
-sanitise :: String -> String
-sanitise input = show $ map unwords $ map parseLine $ lines input
+sanitise :: String -> String -> String
+sanitise key input = unlines $ map (parseLine key) $ lines input
 
 main :: IO()
-main = getArgs >>= parse >>= putStr . sanitise
+main = getArgs >>= parse >>= putStr . sanitise "Key"
 --  args <- getArgs
 --  content <- readFile $ args !! 0
 --  let iterator = lines content
